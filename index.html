@@ -1,0 +1,102 @@
+<!doctype html>
+
+<html>
+<head>
+  <title>tracking.js -  feature detector with camera</title>
+
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/foundation/5.5.2/css/foundation.min.css">
+
+  <script src="bower_components/tracking.js/build/tracking-min.js"></script>
+  <script src="bower_components/tracking.js/build/data/face-min.js"></script>
+  <script src="bower_components/dat-gui/build/dat.gui.min.js"></script>
+
+  <style>
+  #video {
+    position: absolute;
+    top: -1000px;
+  }
+
+  #canvas {
+    left: 50%;
+    top: 50%;
+    margin-left: -200px;
+    margin-top: -150px;
+    position: absolute;
+  }
+  </style>
+</head>
+<body>
+  <div class="demo-title">
+    <p><a href="http://trackingjs.com" target="_parent">tracking.js</a> － display detected features</p>
+  </div>
+
+  <div class="demo-frame">
+    <div class="demo-container">
+      <video id="video" width="400" height="300" preload autoplay loop muted></video>
+      <canvas id="canvas" width="400" height="300"></canvas>
+    </div>
+  </div>
+
+  <script>
+    var canvas = document.getElementById('canvas');
+    var context = canvas.getContext('2d');
+
+    var findFaces = function(){
+
+      var tracker = new tracking.ObjectTracker('face');
+      tracker.setInitialScale(4);
+      tracker.setStepSize(2);
+      tracker.setEdgesDensity(0.1);
+
+      tracking.track('#video', tracker, { camera: true });
+      tracker.on('track', function(event) {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        event.data.forEach(function(rect) {
+          console.log(rect);
+          context.strokeStyle = '#a64ceb';
+          context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          context.font = '11px Helvetica';
+          context.fillStyle = "#fff";
+          context.fillText('x: ' + rect.x + 'px', rect.x + rect.width + 5, rect.y + 11);
+          context.fillText('y: ' + rect.y + 'px', rect.x + rect.width + 5, rect.y + 22);
+          guessWho(rect);
+        });
+      });
+    }
+
+    var guessWho = function(rect){
+      var FaceGuesser = function() {
+        FaceGuesser.base(this, 'constructor');
+      };
+      tracking.inherits(FaceGuesser, tracking.Tracker);
+
+      FaceGuesser.prototype.threshold = 2;
+
+      FaceGuesser.prototype.track = function(pixels, width, height) {
+        
+        var gray = tracking.Image.grayscale(pixels, width, height);
+        var corners = tracking.Fast.findCorners(gray, width, height);
+        
+        this.emit('track', {
+          data: corners
+        });
+      };
+
+      var tracker = new FaceGuesser();
+      tracker.on('track', function(event) {
+        context.clearRect(rect.x, rect.y, rect.width + rect.x, rect.height + rect.y);
+        var corners = event.data;
+        console.log(corners)
+        for (var i = 0; i < corners.length; i += 2) {
+          context.fillStyle = '#f00';
+          context.fillRect(corners[i], corners[i + 1], 2, 2);
+        }
+      });
+
+      tracking.track('#video', tracker, { camera: true });
+    }
+    findFaces();
+  </script>
+</body>
+</html>
